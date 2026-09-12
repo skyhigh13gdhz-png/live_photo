@@ -1,4 +1,5 @@
 #!/bin/bash
+# Migration reference only. Do not execute this script as part of the iOS app.
 set -u
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"

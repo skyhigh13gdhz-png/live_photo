@@ -1,3 +1,4 @@
+// Migration reference only. Do not include this file in the iOS app target.
 import Foundation
 import AVFoundation
 import ImageIO
