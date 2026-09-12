@@ -24,6 +24,30 @@ Mac 本地批量静态图微动视频工具。
 - 不会直接输出苹果原生 Live Photo 文件对。
 - 当前版本只适配 macOS，不支持直接在 Windows 上运行。
 
+
+## 生成真正的 Apple Live Photo（单张验收版）
+
+仓库新增了「生成LivePhoto测试.command」。它不会替代或修改原来的批量 MP4 工具，而是把一张原图和对应的微动 MP4 制作为苹果可识别的 Live Photo。
+
+Live Photo 并不是单独的 `.live` 文件，而是：
+
+- 一张带配对标识的 JPG；
+- 一段带相同标识和静态帧时间轨道的 MOV；
+- 导入「照片」App 后，由系统显示为一张带 `LIVE` 标志的照片。
+
+首次测试：
+
+1. 先用原工具生成一条满意的微动 MP4。
+2. 右键打开「生成LivePhoto测试.command」。
+3. 第一步选择原始静态图片，第二步选择对应的 MP4。
+4. 首次运行如果提示缺少 Apple Command Line Tools，在终端执行 `xcode-select --install`，安装后重试。
+5. macOS 询问照片权限时选择允许。
+6. 打开「照片」App，确认新照片带有 `LIVE` 标志，并长按检查是否播放。
+
+脚本还会在原图旁保留 `LivePhoto测试-日期时间` 文件夹，其中的 JPG 和 MOV 必须成对保留。不要只改 MP4 扩展名；缺少配对标识或 MOV 的定时元数据轨道时，苹果不会把它识别为 Live Photo。
+
+> 当前先做单张验收。确认你的 macOS 与照片图库能够正确识别后，再把同一流程接入每图随机生成多条的批量脚本，避免在格式未经验证时批量生产无效文件。
+
 ## 系统要求
 
 - macOS
@@ -236,6 +260,9 @@ brew install ffmpeg
 | `开始批量随机生成.command` | 选择图片文件夹并批量生成视频 |
 | `批量生成参数.conf` | 调整每图数量、视频规格和五种形变强度 |
 | `README.md` | 使用和参数说明 |
+| `生成LivePhoto测试.command` | 选择一张原图和一条 MP4，制作并导入真正的 Live Photo |
+| `LivePhotoMaker.swift` | 写入 JPG/MOV 配对元数据并通过 PhotoKit 导入照片图库 |
+| `LivePhotoMaker-Info.plist` | 声明照片图库权限用途 |
 
 ## 安全说明
 
