@@ -237,7 +237,9 @@ do {
     let shouldImport = CommandLine.arguments.contains("--import")
 
     try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
-    let base = sourcePhoto.deletingPathExtension().lastPathComponent
+    // One source image may produce multiple motion videos. Use the movie name
+    // so every randomized result gets its own non-colliding Live Photo pair.
+    let base = sourceMovie.deletingPathExtension().lastPathComponent
     let assetID = UUID().uuidString
     let photoOutput = outputDirectory.appendingPathComponent("\(base)-LIVE.jpg")
     let movieOutput = outputDirectory.appendingPathComponent("\(base)-LIVE.mov")

@@ -4,6 +4,9 @@ set -u
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 tool_dir="$(cd "$(dirname "$0")" && pwd)"
 config="$tool_dir/批量生成参数.conf"
+live_source="$tool_dir/LivePhotoMaker.swift"
+live_plist="$tool_dir/LivePhotoMaker-Info.plist"
+live_binary="$tool_dir/LivePhotoMaker"
 
 dialog() {
   if [[ -x /usr/bin/osascript ]]; then
@@ -18,6 +21,10 @@ command -v ffmpeg >/dev/null 2>&1 || { dialog "尚未安装 FFmpeg，请先运�
 # shellcheck disable=SC1090
 source "$config"
 
+GENERATE_LIVE_PHOTO="${GENERATE_LIVE_PHOTO:-1}"
+AUTO_IMPORT_TO_PHOTOS="${AUTO_IMPORT_TO_PHOTOS:-1}"
+KEEP_MP4="${KEEP_MP4:-1}"
+
 number='^-?[0-9]+([.][0-9]+)?$'
 positive='^[0-9]+([.][0-9]+)?$'
 integer='^[0-9]+$'
@@ -30,6 +37,9 @@ done
   dialog "生成数量、时长、帧率、清晰度或超采样参数格式错误。"; exit 1;
 }
 (( VIDEOS_PER_IMAGE >= 1 && VIDEOS_PER_IMAGE <= 35 )) || { dialog "VIDEOS_PER_IMAGE 只能设为1～35。"; exit 1; }
+for flag in "$GENERATE_LIVE_PHOTO" "$AUTO_IMPORT_TO_PHOTOS" "$KEEP_MP4"; do
+  [[ "$flag" == "0" || "$flag" == "1" ]] || { dialog "Live Photo 开关只能填写0或1。"; exit 1; }
+done
 (( FPS >= 24 && FPS <= 60 && SUPERSAMPLE >= 1 && SUPERSAMPLE <= 4 )) || {
   dialog "FPS 请设为24～60，SUPERSAMPLE 请设为1～4。"; exit 1;
 }
@@ -94,6 +104,24 @@ shape_names=("01-纵向形变" "02-横向形变" "03-仿射倾斜" "04-轻微侧
 stamp=$(/bin/date +%Y%m%d-%H%M%S)
 output_dir="${input_dir%/}/随机微动视频-${stamp}"
 /bin/mkdir -p "$output_dir"
+live_output_dir="$output_dir/LivePhoto配对文件"
+if (( GENERATE_LIVE_PHOTO == 1 )); then
+  [[ -f "$live_source" && -f "$live_plist" ]] || { dialog "缺少 LivePhotoMaker.swift 或 Info.plist，请完整更新仓库。"; exit 1; }
+  command -v xcrun >/dev/null 2>&1 || { dialog "缺少 Apple Command Line Tools，请先执行 xcode-select --install。"; exit 1; }
+  if [[ ! -x "$live_binary" || "$live_source" -nt "$live_binary" || "$live_plist" -nt "$live_binary" ]]; then
+    compile_log="$tool_dir/LivePhotoMaker-编译日志.txt"
+    if ! xcrun swiftc -swift-version 5 "$live_source" -o "$live_binary" \
+      -framework AVFoundation -framework ImageIO -framework Photos \
+      -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$live_plist" \
+      >"$compile_log" 2>&1; then
+      /usr/bin/open -a TextEdit "$compile_log"
+      dialog "Live Photo 助手编译失败，日志已用文本编辑打开。"
+      exit 1
+    fi
+    /bin/rm -f "$compile_log"
+  fi
+  /bin/mkdir -p "$live_output_dir"
+fi
 temp_dir=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/random-live-motion.XXXXXX") || {
   dialog "无法创建临时处理目录。"; exit 1;
 }
@@ -128,6 +156,8 @@ render_combo() {
 
 success=0
 failed=0
+live_success=0
+live_failed=0
 image_index=0
 total_images=${#files[@]}
 
@@ -172,6 +202,17 @@ for src in "${files[@]}"; do
     echo "  → ${shape_names[$shape]} + ${camera_names[$cam]}"
     if render_camera "$cam" "$prepared" "$camera_file" && render_combo "$camera_file" "$shape" "$target"; then
       success=$((success + 1))
+      if (( GENERATE_LIVE_PHOTO == 1 )); then
+        live_args=("$src" "$target" "$live_output_dir")
+        (( AUTO_IMPORT_TO_PHOTOS == 1 )) && live_args+=("--import")
+        if "$live_binary" "${live_args[@]}"; then
+          live_success=$((live_success + 1))
+          (( KEEP_MP4 == 0 )) && /bin/rm -f "$target"
+        else
+          live_failed=$((live_failed + 1))
+          echo "  Live Photo 制作或导入失败，MP4和配对文件均已保留。"
+        fi
+      fi
     else
       failed=$((failed + 1))
     fi
@@ -179,7 +220,9 @@ for src in "${files[@]}"; do
 done
 
 [[ "$(/usr/bin/uname -s)" == "Darwin" && -x /usr/bin/open ]] && /usr/bin/open "$output_dir"
-if (( failed == 0 )); then
+if (( GENERATE_LIVE_PHOTO == 1 )); then
+  dialog "处理完成：MP4成功${success}条、失败${failed}条；Live Photo成功${live_success}条、失败${live_failed}条。"
+elif (( failed == 0 )); then
   dialog "完成：${total_images}张图，每张${VIDEOS_PER_IMAGE}条，共生成${success}条随机组合视频。"
 else
   dialog "处理结束：成功${success}条，失败${failed}条。请保留终端报错截图。"
