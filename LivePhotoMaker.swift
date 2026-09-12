@@ -52,6 +52,31 @@ func writePairedJPEG(sourceURL: URL, outputURL: URL, assetID: String) throws {
     guard CGImageDestinationFinalize(destination) else { throw MakerError.imageWrite }
 }
 
+func writePairedJPEGFromMovie(movieURL: URL, outputURL: URL, assetID: String) throws {
+    let asset = AVURLAsset(url: movieURL)
+    let generator = AVAssetImageGenerator(asset: asset)
+    generator.appliesPreferredTrackTransform = true
+    generator.requestedTimeToleranceBefore = .zero
+    generator.requestedTimeToleranceAfter = .zero
+    let midpoint = CMTimeMultiplyByFloat64(asset.duration, multiplier: 0.5)
+    guard let image = try? generator.copyCGImage(at: midpoint, actualTime: nil) else {
+        throw MakerError.imageRead
+    }
+
+    let properties: [CFString: Any] = [
+        kCGImagePropertyMakerAppleDictionary: ["17": assetID],
+        kCGImagePropertyOrientation: 1
+    ]
+    guard let destination = CGImageDestinationCreateWithURL(
+        outputURL as CFURL,
+        "public.jpeg" as CFString,
+        1,
+        nil
+    ) else { throw MakerError.imageWrite }
+    CGImageDestinationAddImage(destination, image, properties as CFDictionary)
+    guard CGImageDestinationFinalize(destination) else { throw MakerError.imageWrite }
+}
+
 func contentIdentifierMetadata(_ assetID: String) -> AVMetadataItem {
     let item = AVMutableMetadataItem()
     item.keySpace = .quickTimeMetadata
@@ -217,7 +242,10 @@ do {
     try? FileManager.default.removeItem(at: photoOutput)
     try? FileManager.default.removeItem(at: movieOutput)
 
-    try writePairedJPEG(sourceURL: sourcePhoto, outputURL: photoOutput, assetID: assetID)
+    // The key photo must have the exact geometry/orientation of the paired movie.
+    // The original source can differ after the motion tool's 9:16 crop, so use
+    // the movie's midpoint frame as the paired still and keep the source for naming.
+    try writePairedJPEGFromMovie(movieURL: sourceMovie, outputURL: photoOutput, assetID: assetID)
     try writePairedMovie(sourceURL: sourceMovie, outputURL: movieOutput, assetID: assetID)
     if shouldImport {
         try importIntoPhotos(photoURL: photoOutput, movieURL: movieOutput)
