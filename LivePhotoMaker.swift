@@ -103,11 +103,10 @@ func writePairedMovie(sourceURL: URL, outputURL: URL, assetID: String) throws {
     guard reader.canAdd(readerOutput) else { throw MakerError.readerSetup }
     reader.add(readerOutput)
 
-    let writerInput = AVAssetWriterInput(
-        mediaType: .video,
-        outputSettings: nil,
-        sourceFormatHint: videoTrack.formatDescriptions.first as? CMFormatDescription
-    )
+    // Passthrough copy: the compressed format is supplied by incoming sample buffers.
+    // Supplying formatDescriptions here breaks compilation with newer Swift SDKs,
+    // which reject conditional casts involving Core Foundation types.
+    let writerInput = AVAssetWriterInput(mediaType: .video, outputSettings: nil)
     writerInput.transform = videoTrack.preferredTransform
     guard writer.canAdd(writerInput) else { throw MakerError.writerSetup }
     writer.add(writerInput)
