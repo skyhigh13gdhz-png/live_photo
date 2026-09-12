@@ -53,6 +53,10 @@ done
 (( FPS >= 24 && FPS <= 60 && SUPERSAMPLE >= 1 && SUPERSAMPLE <= 4 )) || {
   dialog "FPS 请设为24～60，SUPERSAMPLE 请设为1～4。"; exit 1;
 }
+if (( GENERATE_LIVE_PHOTO == 0 && KEEP_MP4 == 0 )); then
+  dialog "GENERATE_LIVE_PHOTO 和 KEEP_MP4 不能同时设为0，否则不会留下任何成品。"
+  exit 1
+fi
 
 if [[ -n "${LIVE_MOTION_INPUT_DIR:-}" ]]; then
   input_dir="$LIVE_MOTION_INPUT_DIR"
@@ -114,7 +118,9 @@ shape_names=("01-纵向形变" "02-横向形变" "03-仿射倾斜" "04-轻微侧
 stamp=$(/bin/date +%Y%m%d-%H%M%S)
 output_dir="${input_dir%/}/随机微动视频-${stamp}"
 /bin/mkdir -p "$output_dir"
+mp4_output_dir="$output_dir/MP4视频"
 live_output_dir="$output_dir/LivePhoto配对文件"
+(( KEEP_MP4 == 1 )) && /bin/mkdir -p "$mp4_output_dir"
 if (( GENERATE_LIVE_PHOTO == 1 )); then
   [[ -f "$live_source" && -f "$live_plist" ]] || { dialog "缺少 LivePhotoMaker.swift 或 Info.plist，请完整更新仓库。"; exit 1; }
   command -v xcrun >/dev/null 2>&1 || { dialog "缺少 Apple Command Line Tools，请先执行 xcode-select --install。"; exit 1; }
@@ -209,7 +215,12 @@ for src in "${files[@]}"; do
     shape=$((combo / 7))
     cam=$((combo % 7))
     camera_file="$image_temp/camera-$cam.mkv"
-    target="$output_dir/${sequence}-${name}-${shape_names[$shape]}+${camera_names[$cam]}.mp4"
+    file_stem="${sequence}-${name}-${shape_names[$shape]}+${camera_names[$cam]}"
+    if (( KEEP_MP4 == 1 )); then
+      target="$mp4_output_dir/${file_stem}.mp4"
+    else
+      target="$image_temp/${file_stem}.mp4"
+    fi
     echo "  → ${shape_names[$shape]} + ${camera_names[$cam]}"
     if render_camera "$cam" "$prepared" "$camera_file" && render_combo "$camera_file" "$shape" "$target"; then
       success=$((success + 1))
@@ -218,7 +229,7 @@ for src in "${files[@]}"; do
         (( AUTO_IMPORT_TO_PHOTOS == 1 )) && live_args+=("--import")
         if "$live_binary" "${live_args[@]}"; then
           live_success=$((live_success + 1))
-          (( KEEP_MP4 == 0 )) && /bin/rm -f "$target"
+          # KEEP_MP4=0 时 target 位于临时目录，任务结束自动清理。
         else
           live_failed=$((live_failed + 1))
           echo "  Live Photo 制作或导入失败，MP4和配对文件均已保留。"
