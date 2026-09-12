@@ -232,6 +232,10 @@ for src in "${files[@]}"; do
           # KEEP_MP4=0 时 target 位于临时目录，任务结束自动清理。
         else
           live_failed=$((live_failed + 1))
+          if (( KEEP_MP4 == 0 )); then
+            /bin/mkdir -p "$mp4_output_dir"
+            /bin/mv "$target" "$mp4_output_dir/${file_stem}.mp4"
+          fi
           echo "  Live Photo 制作或导入失败，MP4和配对文件均已保留。"
         fi
       fi
