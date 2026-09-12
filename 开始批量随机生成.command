@@ -134,23 +134,24 @@ render_camera() {
   local zexpr="${camera_z[$cam]}" xmove="${camera_x[$cam]}" ymove="${camera_y[$cam]}"
   local xexpr="min(max(iw/2-(iw/zoom/2)+${xmove},0),iw-iw/zoom)"
   local yexpr="min(max(ih/2-(ih/zoom/2)+${ymove},0),ih-ih/zoom)"
-  local filter="scale=${work_w}:${work_h}:force_original_aspect_ratio=increase,crop=${work_w}:${work_h},zoompan=z='${zexpr}':x='${xexpr}':y='${yexpr}':d=${frames}:s=${work_w}x${work_h}:fps=${FPS},scale=1080:1920:flags=lanczos,format=yuv420p"
+  # 全程保留超采样分辨率和 4:4:4 色彩；中间文件无损，避免形变前后重复压缩。
+  local filter="scale=${work_w}:${work_h}:force_original_aspect_ratio=increase:flags=lanczos,crop=${work_w}:${work_h},zoompan=z='${zexpr}':x='${xexpr}':y='${yexpr}':d=${frames}:s=${work_w}x${work_h}:fps=${FPS},format=yuv444p"
   ffmpeg -hide_banner -loglevel error -y -i "$prepared" -vf "$filter" -frames:v "$frames" -an \
-    -c:v libx264 -preset veryfast -crf 12 "$camera_file"
+    -c:v libx264 -preset medium -crf 0 -pix_fmt yuv444p "$camera_file"
 }
 
 render_combo() {
   local camera_file="$1" shape="$2" target="$3" filter
   case "$shape" in
-    0) filter="perspective=x0=0:y0='-H*${vstretch}/2*sin(PI*in/${last})':x1=W:y1='-H*${vstretch}/2*sin(PI*in/${last})':x2=0:y2='H*(1+${vstretch}/2*sin(PI*in/${last}))':x3=W:y3='H*(1+${vstretch}/2*sin(PI*in/${last}))':sense=destination:eval=frame:interpolation=cubic" ;;
-    1) filter="scale=2160:3840,scale=w='trunc(iw*(1+${hstretch}*${phase})/2)*2':h=ih:eval=frame,crop=2160:3840:(in_w-out_w)/2:(in_h-out_h)/2,scale=1080:1920:flags=lanczos" ;;
-    2) filter="scale=1168:2078,sendcmd=c='0-${DURATION} [expr] shear@warp shx ${shear}*sin(PI*TI)',shear@warp=shx=0:shy=0:fillcolor=black:interp=bilinear,crop=1080:1920:(in_w-out_w)/2:(in_h-out_h)/2" ;;
-    3) filter="scale=1168:2078,rotate=angle='${roll}*sin(PI*t/${DURATION})':fillcolor=black:bilinear=1,crop=1080:1920:(in_w-out_w)/2:(in_h-out_h)/2" ;;
-    4) filter="scale=1190:2116,sendcmd=c='0-${DURATION} [expr] lenscorrection@lens k1 ${LENS_BREATHING}*sin(PI*TI)',lenscorrection@lens=cx=0.5:cy=0.5:k1=0:k2=0:i=bilinear:fc=black,crop=1080:1920:(in_w-out_w)/2:(in_h-out_h)/2" ;;
+    0) filter="perspective=x0=0:y0='-H*${vstretch}/2*sin(PI*in/${last})':x1=W:y1='-H*${vstretch}/2*sin(PI*in/${last})':x2=0:y2='H*(1+${vstretch}/2*sin(PI*in/${last}))':x3=W:y3='H*(1+${vstretch}/2*sin(PI*in/${last}))':sense=destination:eval=frame:interpolation=cubic,scale=1080:1920:flags=lanczos" ;;
+    1) filter="scale=w='trunc(iw*(1+${hstretch}*${phase})/2)*2':h=ih:eval=frame,crop=${work_w}:${work_h}:(in_w-out_w)/2:(in_h-out_h)/2,scale=1080:1920:flags=lanczos" ;;
+    2) filter="scale=$((work_w+88*SUPERSAMPLE)):$((work_h+158*SUPERSAMPLE)):flags=lanczos,sendcmd=c='0-${DURATION} [expr] shear@warp shx ${shear}*sin(PI*TI)',shear@warp=shx=0:shy=0:fillcolor=black:interp=bilinear,crop=${work_w}:${work_h}:(in_w-out_w)/2:(in_h-out_h)/2,scale=1080:1920:flags=lanczos" ;;
+    3) filter="scale=$((work_w+88*SUPERSAMPLE)):$((work_h+158*SUPERSAMPLE)):flags=lanczos,rotate=angle='${roll}*sin(PI*t/${DURATION})':fillcolor=black:bilinear=1,crop=${work_w}:${work_h}:(in_w-out_w)/2:(in_h-out_h)/2,scale=1080:1920:flags=lanczos" ;;
+    4) filter="scale=$((work_w+110*SUPERSAMPLE)):$((work_h+196*SUPERSAMPLE)):flags=lanczos,sendcmd=c='0-${DURATION} [expr] lenscorrection@lens k1 ${LENS_BREATHING}*sin(PI*TI)',lenscorrection@lens=cx=0.5:cy=0.5:k1=0:k2=0:i=bilinear:fc=black,crop=${work_w}:${work_h}:(in_w-out_w)/2:(in_h-out_h)/2,scale=1080:1920:flags=lanczos" ;;
     *) return 1 ;;
   esac
   ffmpeg -hide_banner -loglevel error -y -i "$camera_file" -vf "$filter,format=yuv420p" \
-    -frames:v "$frames" -an -c:v libx264 -preset veryfast -crf "$QUALITY" \
+    -frames:v "$frames" -an -c:v libx264 -preset slow -crf "$QUALITY" \
     -movflags +faststart "$target"
 }
 
@@ -197,7 +198,7 @@ for src in "${files[@]}"; do
   for combo in $selected; do
     shape=$((combo / 7))
     cam=$((combo % 7))
-    camera_file="$image_temp/camera-$cam.mp4"
+    camera_file="$image_temp/camera-$cam.mkv"
     target="$output_dir/${sequence}-${name}-${shape_names[$shape]}+${camera_names[$cam]}.mp4"
     echo "  → ${shape_names[$shape]} + ${camera_names[$cam]}"
     if render_camera "$cam" "$prepared" "$camera_file" && render_combo "$camera_file" "$shape" "$target"; then
