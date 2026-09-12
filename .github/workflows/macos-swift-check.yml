@@ -1,0 +1,22 @@
+name: macOS Swift compile check
+on:
+  push:
+    paths:
+      - 'LivePhotoMaker.swift'
+      - 'LivePhotoMaker-Info.plist'
+      - '.github/workflows/macos-swift-check.yml'
+  pull_request:
+    paths:
+      - 'LivePhotoMaker.swift'
+      - 'LivePhotoMaker-Info.plist'
+jobs:
+  compile:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile LivePhotoMaker
+        run: |
+          xcrun swiftc -swift-version 5 LivePhotoMaker.swift -o LivePhotoMaker \
+            -framework AVFoundation -framework ImageIO -framework Photos \
+            -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist \
+            -Xlinker LivePhotoMaker-Info.plist
