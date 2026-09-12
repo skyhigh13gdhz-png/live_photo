@@ -16,12 +16,16 @@ command -v xcrun >/dev/null 2>&1 || { dialog "缺少 Apple Command Line Tools。
 
 if [[ ! -x "$binary" || "$source_file" -nt "$binary" || "$info_plist" -nt "$binary" ]]; then
   echo "首次运行：正在编译 Live Photo 助手……"
-  xcrun swiftc "$source_file" -o "$binary" \
+  compile_log="$tool_dir/LivePhotoMaker-编译日志.txt"
+  if ! xcrun swiftc -swift-version 5 "$source_file" -o "$binary" \
     -framework AVFoundation -framework ImageIO -framework Photos \
-    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$info_plist" || {
-      dialog "编译失败。请保留终端完整报错截图。"
-      exit 1
-    }
+    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$info_plist" \
+    >"$compile_log" 2>&1; then
+    /usr/bin/open -a TextEdit "$compile_log"
+    dialog "编译失败，完整日志已自动用『文本编辑』打开。"
+    exit 1
+  fi
+  /bin/rm -f "$compile_log"
 fi
 
 photo=$(/usr/bin/osascript <<'APPLESCRIPT'
