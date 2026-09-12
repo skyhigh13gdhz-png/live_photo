@@ -98,15 +98,22 @@ func writePairedMovie(sourceURL: URL, outputURL: URL, assetID: String) throws {
         throw MakerError.conversion(error.localizedDescription)
     }
 
-    let readerOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
+    let readerSettings: [String: Any] = [
+        kCVPixelBufferPixelFormatTypeKey as String: NSNumber(value: kCVPixelFormatType_32BGRA)
+    ]
+    let readerOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: readerSettings)
     readerOutput.alwaysCopiesSampleData = false
     guard reader.canAdd(readerOutput) else { throw MakerError.readerSetup }
     reader.add(readerOutput)
 
-    // Passthrough copy: the compressed format is supplied by incoming sample buffers.
-    // Supplying formatDescriptions here breaks compilation with newer Swift SDKs,
-    // which reject conditional casts involving Core Foundation types.
-    let writerInput = AVAssetWriterInput(mediaType: .video, outputSettings: nil)
+    let size = videoTrack.naturalSize
+    let writerSettings: [String: Any] = [
+        AVVideoCodecKey: AVVideoCodecType.h264,
+        AVVideoWidthKey: Int(abs(size.width)),
+        AVVideoHeightKey: Int(abs(size.height))
+    ]
+    let writerInput = AVAssetWriterInput(mediaType: .video, outputSettings: writerSettings)
+    writerInput.expectsMediaDataInRealTime = false
     writerInput.transform = videoTrack.preferredTransform
     guard writer.canAdd(writerInput) else { throw MakerError.writerSetup }
     writer.add(writerInput)
@@ -123,13 +130,16 @@ func writePairedMovie(sourceURL: URL, outputURL: URL, assetID: String) throws {
 
     let duration = asset.duration
     let midpoint = CMTimeMultiplyByFloat64(duration, multiplier: 0.5)
+    let frameRate = max(Double(videoTrack.nominalFrameRate), 1.0)
+    let markerDuration = CMTime(seconds: 1.0 / frameRate, preferredTimescale: duration.timescale)
     let marker = AVMutableMetadataItem()
     marker.keySpace = .quickTimeMetadata
     marker.key = "com.apple.quicktime.still-image-time" as NSString
-    marker.value = NSNumber(value: Int8(-1))
+    marker.value = NSNumber(value: Int8(0))
     marker.dataType = kCMMetadataBaseDataType_SInt8 as String
-    metadataAdaptor.append(AVTimedMetadataGroup(items: [marker], timeRange: CMTimeRange(start: midpoint, duration: CMTime(value: 1, timescale: 30))))
-    metadataInput.markAsFinished()
+    guard metadataAdaptor.append(AVTimedMetadataGroup(items: [marker], timeRange: CMTimeRange(start: midpoint, duration: markerDuration))) else {
+        throw MakerError.conversion("无法写入 Live Photo 静态帧时间元数据")
+    }
 
     let semaphore = DispatchSemaphore(value: 0)
     let queue = DispatchQueue(label: "live-photo.video-copy")
@@ -175,8 +185,12 @@ func importIntoPhotos(photoURL: URL, movieURL: URL) throws {
     var imported = false
     PHPhotoLibrary.shared().performChanges({
         let request = PHAssetCreationRequest.forAsset()
-        request.addResource(with: .photo, fileURL: photoURL, options: nil)
-        request.addResource(with: .pairedVideo, fileURL: movieURL, options: nil)
+        let movieOptions = PHAssetResourceCreationOptions()
+        movieOptions.originalFilename = movieURL.lastPathComponent
+        let photoOptions = PHAssetResourceCreationOptions()
+        photoOptions.originalFilename = photoURL.lastPathComponent
+        request.addResource(with: .pairedVideo, fileURL: movieURL, options: movieOptions)
+        request.addResource(with: .photo, fileURL: photoURL, options: photoOptions)
     }) { success, error in
         imported = success
         importError = error
