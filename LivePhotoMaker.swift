@@ -160,7 +160,9 @@ func writePairedMovie(sourceURL: URL, outputURL: URL, assetID: String) throws {
     let marker = AVMutableMetadataItem()
     marker.keySpace = .quickTimeMetadata
     marker.key = "com.apple.quicktime.still-image-time" as NSString
-    marker.value = NSNumber(value: Int8(0))
+    // Apple's Live Photo still-image marker is the signed int8 value -1
+    // (stored as the byte 0xFF), not 0x00.
+    marker.value = NSNumber(value: Int8(-1))
     marker.dataType = kCMMetadataBaseDataType_SInt8 as String
     guard metadataAdaptor.append(AVTimedMetadataGroup(items: [marker], timeRange: CMTimeRange(start: midpoint, duration: markerDuration))) else {
         throw MakerError.conversion("无法写入 Live Photo 静态帧时间元数据")
