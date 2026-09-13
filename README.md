@@ -7,12 +7,15 @@
 ## 当前状态
 
 - 已完成 iOS 技术调研与实施设计。
-- 下一阶段：创建 iOS 工程并完成最小 Live Photo 真机闭环。
-- 当前开发环境仍需安装完整 Xcode 和 iPhoneOS SDK。
+- 已创建 SwiftUI iOS 工程与 Phase 0 最小生成链路。
+- iOS 26.5 Simulator 构建、单元测试、安装启动和首屏检查已通过。
+- arm64 iPhoneOS 26.5 SDK 无签名构建已通过。
+- 下一阶段：配置开发者签名并在真实 iPhone 验证 Live Photo 保存和长按播放。
 
 ## 文档
 
 - [iOS App 技术调研与实施设计](docs/ios-app-technical-design.md)
+- [开发验证记录](docs/development-log.md)
 - [macOS 原型参考说明](references/macos-prototype/README.md)
 
 ## 原型参考边界
