@@ -33,4 +33,25 @@
 ### 潜在风险
 
 - Live Photo 手工配对元数据不是 Apple 完整公开规范，真机闭环仍是 Phase 0 的硬门槛。
-- 当前中点 JPEG 与 MOV 共用渲染公式，但尚未加入导出前资源解析校验。
+- 当前中点 JPEG 与 MOV 共用渲染公式；已校验 metadata 轨存在，后续还需深入解析 marker 的具体值和时间范围。
+
+## 2026-09-13：配对资源校验
+
+### 目的
+
+在请求照片权限和写入系统图库前阻断空文件、尺寸错误、配对标识不一致或 metadata 轨缺失的成品。
+
+### 改动点
+
+- 新增 `LivePhotoValidator`。
+- 校验 JPEG/MOV 存在且非空。
+- 校验 JPEG 为 1080 × 1920，MakerApple `17` 与任务 UUID 一致。
+- 校验 MOV 视频轨尺寸、QuickTime content identifier 和 metadata 轨。
+- `PhotoLibrarySaver` 在请求权限前强制执行校验。
+- 新增完整生成一组 90 帧配对资源的模拟器集成测试。
+
+### 验证结果
+
+- iPhone 17 Pro / iOS 26.5 Simulator XCTest：2 项通过。
+- 实际生成与校验集成测试：通过，约 3.0 秒。
+- 该测试不写入系统照片库，也不能替代真实 iPhone 的 LIVE 标志验收。

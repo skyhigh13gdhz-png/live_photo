@@ -2,6 +2,8 @@ import Photos
 
 enum PhotoLibrarySaver {
     static func save(_ resources: LivePhotoResources) async throws {
+        try await LivePhotoValidator.validate(resources)
+
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
             throw LivePhotoError.photosDenied

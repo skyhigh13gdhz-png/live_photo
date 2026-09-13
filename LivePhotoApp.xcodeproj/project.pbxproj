@@ -15,6 +15,7 @@
 		A10000000000000000000006 /* LivePhotoGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* LivePhotoGenerator.swift */; };
 		A10000000000000000000007 /* PhotoLibrarySaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* PhotoLibrarySaver.swift */; };
 		A10000000000000000000008 /* MotionCurveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* MotionCurveTests.swift */; };
+		A10000000000000000000009 /* LivePhotoValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000B /* LivePhotoValidator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +39,7 @@
 		B10000000000000000000008 /* MotionCurveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionCurveTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000009 /* LivePhotoApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LivePhotoApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1000000000000000000000A /* LivePhotoAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LivePhotoAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1000000000000000000000B /* LivePhotoValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePhotoValidator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,6 +111,7 @@
 				B10000000000000000000005 /* LivePhotoError.swift */,
 				B10000000000000000000006 /* LivePhotoGenerator.swift */,
 				B10000000000000000000007 /* PhotoLibrarySaver.swift */,
+				B1000000000000000000000B /* LivePhotoValidator.swift */,
 			);
 			path = LivePhoto;
 			sourceTree = "<group>";
@@ -236,6 +239,7 @@
 				A10000000000000000000005 /* LivePhotoError.swift in Sources */,
 				A10000000000000000000006 /* LivePhotoGenerator.swift in Sources */,
 				A10000000000000000000007 /* PhotoLibrarySaver.swift in Sources */,
+				A10000000000000000000009 /* LivePhotoValidator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

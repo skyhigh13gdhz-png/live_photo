@@ -34,7 +34,11 @@ actor LivePhotoGenerator {
                 identifier: identifier,
                 outputURL: photoURL
             )
-            return LivePhotoResources(photoURL: photoURL, movieURL: movieURL)
+            return LivePhotoResources(
+                photoURL: photoURL,
+                movieURL: movieURL,
+                identifier: identifier
+            )
         } catch {
             try? FileManager.default.removeItem(at: directory)
             throw error

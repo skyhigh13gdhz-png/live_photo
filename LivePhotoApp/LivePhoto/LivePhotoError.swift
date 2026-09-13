@@ -7,6 +7,7 @@ enum LivePhotoError: LocalizedError {
     case writerSetup
     case writerFailed(String)
     case metadata
+    case validation(String)
     case photosDenied
     case photosSave(String)
 
@@ -18,6 +19,7 @@ enum LivePhotoError: LocalizedError {
         case .writerSetup: "无法配置视频编码器。"
         case .writerFailed(let reason): "视频编码失败：\(reason)"
         case .metadata: "无法写入 Live Photo 配对元数据。"
+        case .validation(let reason): "Live Photo 校验失败：\(reason)"
         case .photosDenied: "没有保存到照片的权限。"
         case .photosSave(let reason): "照片保存失败：\(reason)"
         }
@@ -27,4 +29,5 @@ enum LivePhotoError: LocalizedError {
 struct LivePhotoResources: Sendable {
     let photoURL: URL
     let movieURL: URL
+    let identifier: String
 }
