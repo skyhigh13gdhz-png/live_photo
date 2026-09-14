@@ -7,14 +7,15 @@ actor LivePhotoGenerator {
     private let width = 1080
     private let height = 1920
     private let fps: Int32 = 30
-    private let frameCount = 90
     private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
 
     func generate(
         from image: UIImage,
+        configuration: MotionConfiguration = .init(),
         progress: @escaping @Sendable (Double) -> Void
     ) async throws -> LivePhotoResources {
-        let renderer = try StablePushRenderer(image: image)
+        let renderer = try StablePushRenderer(image: image, configuration: configuration)
+        let frameCount = max(2, Int((configuration.duration * Double(fps)).rounded()))
         let identifier = UUID().uuidString
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("LivePhoto-\(identifier)", isDirectory: true)
@@ -25,6 +26,7 @@ actor LivePhotoGenerator {
         do {
             try await writeMovie(
                 renderer: renderer,
+                frameCount: frameCount,
                 identifier: identifier,
                 outputURL: movieURL,
                 progress: progress
@@ -47,6 +49,7 @@ actor LivePhotoGenerator {
 
     private func writeMovie(
         renderer: StablePushRenderer,
+        frameCount: Int,
         identifier: String,
         outputURL: URL,
         progress: @escaping @Sendable (Double) -> Void

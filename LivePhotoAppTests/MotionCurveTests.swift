@@ -4,10 +4,36 @@ import UIKit
 
 final class MotionCurveTests: XCTestCase {
     func testStablePushEndpoints() throws {
-        let smoothAtStart = 0.0 * 0.0 * (3 - 2 * 0.0)
-        let smoothAtEnd = 1.0 * 1.0 * (3 - 2 * 1.0)
+        let smoothAtStart = StablePushRenderer.smooth(0)
+        let smoothAtEnd = StablePushRenderer.smooth(1)
         XCTAssertEqual(1 + 0.075 * smoothAtStart, 1, accuracy: 0.000_001)
         XCTAssertEqual(1 + 0.075 * smoothAtEnd, 1.075, accuracy: 0.000_001)
+    }
+
+    func testMotionCurveClampsAndHasSmoothMidpoint() {
+        XCTAssertEqual(StablePushRenderer.smooth(-1), 0)
+        XCTAssertEqual(StablePushRenderer.smooth(0.5), 0.5, accuracy: 0.000_001)
+        XCTAssertEqual(StablePushRenderer.smooth(2), 1)
+    }
+
+    func testEveryMotionEffectKeepsOutputCovered() throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 1600, height: 900))
+            .image { context in
+                UIColor.systemOrange.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 1600, height: 900))
+            }
+
+        for effect in MotionEffect.allCases {
+            let configuration = MotionConfiguration(
+                effect: effect,
+                duration: 3,
+                intensity: MotionConfiguration.intensityRange.upperBound
+            )
+            let renderer = try StablePushRenderer(image: image, configuration: configuration)
+            for progress in [0.0, 0.5, 1.0] {
+                XCTAssertEqual(renderer.frame(progress: progress).extent, CGRect(origin: .zero, size: StablePushRenderer.outputSize))
+            }
+        }
     }
 
     func testGeneratedPairPassesValidation() async throws {
