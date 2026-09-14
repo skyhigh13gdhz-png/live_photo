@@ -16,6 +16,19 @@ final class MotionCurveTests: XCTestCase {
         XCTAssertEqual(StablePushRenderer.smooth(2), 1)
     }
 
+    func testRandomScopeResolvesToRequestedEffectType() {
+        var configuration = MotionConfiguration()
+        for scope in RandomScope.allCases {
+            configuration.randomScope = scope
+            let resolved = configuration.resolvedForExport()
+            switch scope {
+            case .combined: XCTAssertEqual(resolved.mode, .combined)
+            case .motion: XCTAssertEqual(resolved.mode, .motion)
+            case .shape: XCTAssertEqual(resolved.mode, .shape)
+            }
+        }
+    }
+
     func testEveryMotionAndShapeCombinationKeepsOutputOpaque() throws {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 1600, height: 900))
             .image { context in

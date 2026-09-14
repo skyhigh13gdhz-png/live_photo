@@ -59,7 +59,7 @@ struct ComposerView: View {
                 .fill(.secondary.opacity(0.12))
 
             if let image = model.image {
-                RenderedEffectPreview(image: image, configuration: model.configuration)
+                RenderedEffectPreview(image: image, configuration: model.previewConfiguration)
             } else {
                 ContentUnavailableView(
                     "选择静态照片",
@@ -130,8 +130,33 @@ struct ComposerView: View {
             .pickerStyle(.segmented)
 
             if model.configuration.mode == .random {
-                Label("每张照片会独立随机选择一种运镜和一种形变", systemImage: "shuffle")
+                effectTitle("随机内容")
+                Picker("随机内容", selection: $model.configuration.randomScope) {
+                    ForEach(RandomScope.allCases) { scope in
+                        Text(scope.title).tag(scope)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: model.configuration.randomScope) { _, _ in
+                    model.randomizeAll()
+                }
+
+                Label("每张照片独立抽取；预览即实际导出效果", systemImage: "shuffle")
                     .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    Button("重抽本张", systemImage: "arrow.clockwise") {
+                        model.randomizeCurrent()
+                    }
+                    Button("重抽全部", systemImage: "shuffle") {
+                        model.randomizeAll()
+                    }
+                }
+                .buttonStyle(.bordered)
+
+                Text(randomResultText)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 if model.configuration.appliesMotion {
@@ -176,6 +201,9 @@ struct ComposerView: View {
                         maximumText: "明显"
                     )
                 }
+                Text("形变 1.00x 对应 Mac 脚本的默认强度；运镜强度为 iOS 统一幅度控制。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(14)
@@ -221,6 +249,16 @@ struct ComposerView: View {
         if let motion = option as? MotionEffect { return motion.title }
         if let shape = option as? ShapeEffect { return shape.title }
         return String(describing: option)
+    }
+
+    private var randomResultText: String {
+        let config = model.previewConfiguration
+        switch config.mode {
+        case .combined: return "当前第 \(model.selectedIndex + 1) 张：\(config.motionEffect.title) + \(config.shapeEffect.title)"
+        case .motion: return "当前第 \(model.selectedIndex + 1) 张：\(config.motionEffect.title)"
+        case .shape: return "当前第 \(model.selectedIndex + 1) 张：\(config.shapeEffect.title)"
+        case .random: return "选择照片后生成随机结果"
+        }
     }
 
     private func settingSlider(
@@ -295,12 +333,11 @@ private struct RenderedEffectPreview: View {
     }
 
     private func renderedFrame(at date: Date) -> CGImage? {
-        let config = configuration.previewConfiguration
         let progress = date.timeIntervalSinceReferenceDate
-            .truncatingRemainder(dividingBy: config.duration) / config.duration
+            .truncatingRemainder(dividingBy: configuration.duration) / configuration.duration
         guard let renderer = try? StablePushRenderer(
             image: image,
-            configuration: config,
+            configuration: configuration,
             outputSize: CGSize(width: 270, height: 480)
         ) else { return nil }
         let bounds = CGRect(x: 0, y: 0, width: 270, height: 480)

@@ -1,7 +1,7 @@
 import Foundation
 
 enum EffectMode: String, CaseIterable, Identifiable, Sendable {
-    case motion, shape, combined, random
+    case random, combined, motion, shape
     var id: Self { self }
     var title: String {
         switch self {
@@ -9,6 +9,18 @@ enum EffectMode: String, CaseIterable, Identifiable, Sendable {
         case .shape: "形变"
         case .combined: "组合"
         case .random: "随机"
+        }
+    }
+}
+
+enum RandomScope: String, CaseIterable, Identifiable, Sendable {
+    case combined, motion, shape
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .combined: "组合随机"
+        case .motion: "仅运镜"
+        case .shape: "仅形变"
         }
     }
 }
@@ -44,7 +56,8 @@ enum ShapeEffect: String, CaseIterable, Identifiable, Hashable, Sendable {
 }
 
 struct MotionConfiguration: Sendable {
-    var mode: EffectMode = .motion
+    var mode: EffectMode = .random
+    var randomScope: RandomScope = .combined
     var motionEffect: MotionEffect = .zoomIn
     var shapeEffect: ShapeEffect = .verticalStretch
     var advancedEnabled = false
@@ -62,16 +75,18 @@ struct MotionConfiguration: Sendable {
     func resolvedForExport() -> Self {
         guard mode == .random else { return self }
         var result = self
-        result.mode = .combined
-        result.motionEffect = MotionEffect.allCases.randomElement() ?? .zoomIn
-        result.shapeEffect = ShapeEffect.allCases.randomElement() ?? .verticalStretch
-        return result
-    }
-
-    var previewConfiguration: Self {
-        guard mode == .random else { return self }
-        var result = self
-        result.mode = .combined
+        switch randomScope {
+        case .combined:
+            result.mode = .combined
+            result.motionEffect = MotionEffect.allCases.randomElement() ?? .zoomIn
+            result.shapeEffect = ShapeEffect.allCases.randomElement() ?? .verticalStretch
+        case .motion:
+            result.mode = .motion
+            result.motionEffect = MotionEffect.allCases.randomElement() ?? .zoomIn
+        case .shape:
+            result.mode = .shape
+            result.shapeEffect = ShapeEffect.allCases.randomElement() ?? .verticalStretch
+        }
         return result
     }
 }
