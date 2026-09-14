@@ -14,7 +14,7 @@ actor LivePhotoGenerator {
         configuration: MotionConfiguration = .init(),
         progress: @escaping @Sendable (Double) -> Void
     ) async throws -> LivePhotoResources {
-        let renderer = try StablePushRenderer(image: image, configuration: configuration)
+        let renderer = try StablePushRenderer(image: image, configuration: configuration.resolvedForExport())
         let frameCount = max(2, Int((configuration.duration * Double(fps)).rounded()))
         let identifier = UUID().uuidString
         let directory = FileManager.default.temporaryDirectory

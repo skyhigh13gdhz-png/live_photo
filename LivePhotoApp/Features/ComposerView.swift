@@ -59,7 +59,7 @@ struct ComposerView: View {
                 .fill(.secondary.opacity(0.12))
 
             if let image = model.image {
-                MotionPreview(image: image, configuration: model.configuration)
+                RenderedEffectPreview(image: image, configuration: model.configuration)
             } else {
                 ContentUnavailableView(
                     "选择静态照片",
@@ -111,7 +111,7 @@ struct ComposerView: View {
     private var controls: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("运镜设置", systemImage: "camera.aperture")
+                Label("效果设置", systemImage: "camera.aperture")
                     .font(.headline)
                 Spacer()
                 Text("\(model.images.count) 张")
@@ -119,44 +119,64 @@ struct ComposerView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("选择效果")
+            Text("效果类型")
                 .font(.subheadline.weight(.medium))
 
-            LazyVGrid(columns: effectColumns, spacing: 8) {
-                ForEach(MotionEffect.allCases) { effect in
-                    Button {
-                        model.configuration.effect = effect
-                    } label: {
-                        Text(effect.title)
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .foregroundStyle(model.configuration.effect == effect ? Color.white : Color.primary)
-                            .background(
-                                model.configuration.effect == effect ? Color.accentColor : Color.secondary.opacity(0.10),
-                                in: RoundedRectangle(cornerRadius: 10)
-                            )
-                    }
-                    .buttonStyle(.plain)
+            Picker("效果类型", selection: $model.configuration.mode) {
+                ForEach(EffectMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if model.configuration.mode == .random {
+                Label("每张照片会独立随机选择一种运镜和一种形变", systemImage: "shuffle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                if model.configuration.appliesMotion {
+                    effectTitle("选择运镜")
+                    optionGrid(MotionEffect.allCases, selection: $model.configuration.motionEffect)
+                }
+                if model.configuration.appliesShape {
+                    effectTitle("选择形变")
+                    optionGrid(ShapeEffect.allCases, selection: $model.configuration.shapeEffect)
                 }
             }
 
-            settingSlider(
-                title: "Live Photo 时长",
-                value: $model.configuration.duration,
-                range: MotionConfiguration.durationRange,
-                valueText: String(format: "%.1f 秒", model.configuration.duration),
-                minimumText: "1.5 秒",
-                maximumText: "5.0 秒"
-            )
-            settingSlider(
-                title: "运镜强度",
-                value: $model.configuration.intensity,
-                range: MotionConfiguration.intensityRange,
-                valueText: "\(Int(model.configuration.intensity * 100))%",
-                minimumText: "轻微",
-                maximumText: "明显"
-            )
+            Toggle("高级参数", isOn: $model.configuration.advancedEnabled)
+                .font(.subheadline.weight(.semibold))
+
+            if model.configuration.advancedEnabled {
+                settingSlider(
+                    title: "Live Photo 时长",
+                    value: $model.configuration.duration,
+                    range: MotionConfiguration.durationRange,
+                    valueText: String(format: "%.1f 秒", model.configuration.duration),
+                    minimumText: "1.5 秒",
+                    maximumText: "5.0 秒"
+                )
+                if model.configuration.appliesMotion {
+                    settingSlider(
+                        title: "运镜强度",
+                        value: $model.configuration.motionIntensity,
+                        range: MotionConfiguration.motionIntensityRange,
+                        valueText: "\(Int(model.configuration.motionIntensity * 100))%",
+                        minimumText: "轻微",
+                        maximumText: "明显"
+                    )
+                }
+                if model.configuration.appliesShape {
+                    settingSlider(
+                        title: "形变强度",
+                        value: $model.configuration.shapeIntensity,
+                        range: MotionConfiguration.shapeIntensityRange,
+                        valueText: String(format: "%.2fx", model.configuration.shapeIntensity),
+                        minimumText: "轻微",
+                        maximumText: "明显"
+                    )
+                }
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -165,6 +185,42 @@ struct ComposerView: View {
 
     private var effectColumns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+    }
+
+    private func effectTitle(_ title: String) -> some View {
+        Text(title).font(.subheadline.weight(.medium))
+    }
+
+    private func optionGrid<Option: CaseIterable & Identifiable & Hashable>(
+        _ options: Option.AllCases,
+        selection: Binding<Option>
+    ) -> some View where Option.AllCases: RandomAccessCollection {
+        LazyVGrid(columns: effectColumns, spacing: 8) {
+            ForEach(options) { option in
+                Button {
+                    selection.wrappedValue = option
+                } label: {
+                    Text(optionTitle(option))
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .foregroundStyle(selection.wrappedValue == option ? Color.white : Color.primary)
+                        .background(
+                            selection.wrappedValue == option ? Color.accentColor : Color.secondary.opacity(0.10),
+                            in: RoundedRectangle(cornerRadius: 10)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func optionTitle<Option>(_ option: Option) -> String {
+        if let motion = option as? MotionEffect { return motion.title }
+        if let shape = option as? ShapeEffect { return shape.title }
+        return String(describing: option)
     }
 
     private func settingSlider(
@@ -221,49 +277,33 @@ struct ComposerView: View {
     }
 }
 
-private struct MotionPreview: View {
+private struct RenderedEffectPreview: View {
     let image: UIImage
     let configuration: MotionConfiguration
-    @State private var progress = false
+    private let context = CIContext(options: [.cacheIntermediates: false])
 
     var body: some View {
-        Image(uiImage: image)
-            .resizable()
-            .scaledToFill()
-            .scaleEffect(scale)
-            .offset(offset)
-            .clipped()
-            .onAppear { restart() }
-            .onChange(of: configuration.effect) { _, _ in restart() }
-            .onChange(of: configuration.duration) { _, _ in restart() }
-            .onChange(of: configuration.intensity) { _, _ in restart() }
-    }
-
-    private var scale: CGFloat {
-        let amount = configuration.intensity
-        switch configuration.effect {
-        case .zoomIn: return 1 + (progress ? amount : 0)
-        case .zoomOut: return 1 + (progress ? 0 : amount)
-        default: return 1 + amount
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { timeline in
+            if let frame = renderedFrame(at: timeline.date) {
+                Image(decorative: frame, scale: 1)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.secondary.opacity(0.12)
+            }
         }
     }
 
-    private var offset: CGSize {
-        let amount = configuration.intensity * 140
-        switch configuration.effect {
-        case .panLeft: return CGSize(width: progress ? -amount : amount, height: 0)
-        case .panRight: return CGSize(width: progress ? amount : -amount, height: 0)
-        case .panUp: return CGSize(width: 0, height: progress ? -amount : amount)
-        case .panDown: return CGSize(width: 0, height: progress ? amount : -amount)
-        case .diagonal: return CGSize(width: progress ? amount : -amount, height: progress ? -amount : amount)
-        default: return .zero
-        }
-    }
-
-    private func restart() {
-        progress = false
-        withAnimation(.easeInOut(duration: configuration.duration).repeatForever(autoreverses: false)) {
-            progress = true
-        }
+    private func renderedFrame(at date: Date) -> CGImage? {
+        let config = configuration.previewConfiguration
+        let progress = date.timeIntervalSinceReferenceDate
+            .truncatingRemainder(dividingBy: config.duration) / config.duration
+        guard let renderer = try? StablePushRenderer(
+            image: image,
+            configuration: config,
+            outputSize: CGSize(width: 270, height: 480)
+        ) else { return nil }
+        let bounds = CGRect(x: 0, y: 0, width: 270, height: 480)
+        return context.createCGImage(renderer.frame(progress: progress), from: bounds)
     }
 }

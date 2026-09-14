@@ -16,22 +16,53 @@ final class MotionCurveTests: XCTestCase {
         XCTAssertEqual(StablePushRenderer.smooth(2), 1)
     }
 
-    func testEveryMotionEffectKeepsOutputCovered() throws {
+    func testEveryMotionAndShapeCombinationKeepsOutputOpaque() throws {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 1600, height: 900))
             .image { context in
                 UIColor.systemOrange.setFill()
                 context.fill(CGRect(x: 0, y: 0, width: 1600, height: 900))
             }
 
-        for effect in MotionEffect.allCases {
-            let configuration = MotionConfiguration(
-                effect: effect,
-                duration: 3,
-                intensity: MotionConfiguration.intensityRange.upperBound
-            )
-            let renderer = try StablePushRenderer(image: image, configuration: configuration)
-            for progress in [0.0, 0.5, 1.0] {
-                XCTAssertEqual(renderer.frame(progress: progress).extent, CGRect(origin: .zero, size: StablePushRenderer.outputSize))
+        let outputSize = CGSize(width: 108, height: 192)
+        let context = CIContext(options: [.cacheIntermediates: false])
+        for motion in MotionEffect.allCases {
+            for shape in ShapeEffect.allCases {
+                var configuration = MotionConfiguration()
+                configuration.mode = .combined
+                configuration.motionEffect = motion
+                configuration.shapeEffect = shape
+                configuration.motionIntensity = MotionConfiguration.motionIntensityRange.upperBound
+                configuration.shapeIntensity = MotionConfiguration.shapeIntensityRange.upperBound
+                let renderer = try StablePushRenderer(
+                    image: image,
+                    configuration: configuration,
+                    outputSize: outputSize
+                )
+                for progress in [0.0, 0.5, 1.0] {
+                    let frame = renderer.frame(progress: progress)
+                    XCTAssertEqual(frame.extent, CGRect(origin: .zero, size: outputSize))
+                    var pixels = [UInt8](repeating: 0, count: Int(outputSize.width * outputSize.height * 4))
+                    context.render(
+                        frame,
+                        toBitmap: &pixels,
+                        rowBytes: Int(outputSize.width) * 4,
+                        bounds: frame.extent,
+                        format: .RGBA8,
+                        colorSpace: CGColorSpace(name: CGColorSpace.sRGB)
+                    )
+                    let width = Int(outputSize.width)
+                    let height = Int(outputSize.height)
+                    let cornerOffsets = [0, (width - 1) * 4, (height - 1) * width * 4, ((height * width) - 1) * 4]
+                    XCTAssertTrue(
+                        cornerOffsets.allSatisfy { offset in
+                            pixels[offset] >= 200
+                                && pixels[offset + 1] >= 70
+                                && pixels[offset + 2] <= 60
+                                && pixels[offset + 3] >= 250
+                        },
+                        "\(motion.title) + \(shape.title) 在 \(progress) 时露出非素材背景"
+                    )
+                }
             }
         }
     }
