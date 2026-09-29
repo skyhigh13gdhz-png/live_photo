@@ -9,7 +9,7 @@ struct StablePushRenderer {
     let configuration: MotionConfiguration
     let outputSize: CGSize
 
-    init(image: UIImage, configuration: MotionConfiguration = .init(), outputSize: CGSize = Self.outputSize) throws {
+    init(image: UIImage, configuration: MotionConfiguration = .init(), outputSize: CGSize? = nil) throws {
         guard let source = CIImage(image: image, options: [.applyOrientationProperty: true]) else {
             throw LivePhotoError.imageRead
         }
@@ -19,7 +19,7 @@ struct StablePushRenderer {
         let whiteBackground = CIImage(color: CIColor.white).cropped(to: normalized.extent)
         self.source = normalized.composited(over: whiteBackground)
         self.configuration = configuration
-        self.outputSize = outputSize
+        self.outputSize = outputSize ?? configuration.canvasRatio.outputSize(for: normalized.extent.size)
     }
 
     func frame(progress: Double) -> CIImage {

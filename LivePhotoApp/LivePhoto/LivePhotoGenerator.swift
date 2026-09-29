@@ -4,8 +4,6 @@ import ImageIO
 import UIKit
 
 actor LivePhotoGenerator {
-    private let width = 1080
-    private let height = 1920
     private let fps: Int32 = 30
     private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
 
@@ -39,7 +37,8 @@ actor LivePhotoGenerator {
             return LivePhotoResources(
                 photoURL: photoURL,
                 movieURL: movieURL,
-                identifier: identifier
+                identifier: identifier,
+                outputSize: renderer.outputSize
             )
         } catch {
             try? FileManager.default.removeItem(at: directory)
@@ -54,6 +53,8 @@ actor LivePhotoGenerator {
         outputURL: URL,
         progress: @escaping @Sendable (Double) -> Void
     ) async throws {
+        let width = Int(renderer.outputSize.width)
+        let height = Int(renderer.outputSize.height)
         let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
         writer.metadata = [contentIdentifier(identifier)]
 
@@ -151,7 +152,7 @@ actor LivePhotoGenerator {
 
     private func writePhoto(image: CIImage, identifier: String, outputURL: URL) throws {
         let context = CIContext(options: [.cacheIntermediates: false])
-        let bounds = CGRect(origin: .zero, size: StablePushRenderer.outputSize)
+        let bounds = image.extent
         guard let cgImage = context.createCGImage(image, from: bounds),
               let destination = CGImageDestinationCreateWithURL(
                 outputURL as CFURL,

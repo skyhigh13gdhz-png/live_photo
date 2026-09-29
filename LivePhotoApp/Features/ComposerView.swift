@@ -68,7 +68,7 @@ struct ComposerView: View {
                 )
             }
         }
-        .aspectRatio(9 / 16, contentMode: .fit)
+        .aspectRatio(model.previewAspectRatio, contentMode: .fit)
         .frame(height: 220)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(alignment: .topTrailing) {
@@ -116,6 +116,20 @@ struct ComposerView: View {
                 Spacer()
                 Text("\(model.images.count) 张")
                     .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("画面比例")
+                .font(.subheadline.weight(.medium))
+            Picker("画面比例", selection: $model.configuration.canvasRatio) {
+                ForEach(CanvasRatio.allCases) { ratio in
+                    Text(ratio.title).tag(ratio)
+                }
+            }
+            .pickerStyle(.segmented)
+            if model.configuration.canvasRatio == .original {
+                Text("保留原图比例和构图，不强制裁成竖屏。")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
@@ -333,14 +347,15 @@ private struct RenderedEffectPreview: View {
     }
 
     private func renderedFrame(at date: Date) -> CGImage? {
+        let previewSize = configuration.canvasRatio.previewSize(for: image.size)
         let progress = date.timeIntervalSinceReferenceDate
             .truncatingRemainder(dividingBy: configuration.duration) / configuration.duration
         guard let renderer = try? StablePushRenderer(
             image: image,
             configuration: configuration,
-            outputSize: CGSize(width: 270, height: 480)
+            outputSize: previewSize
         ) else { return nil }
-        let bounds = CGRect(x: 0, y: 0, width: 270, height: 480)
+        let bounds = CGRect(origin: .zero, size: previewSize)
         return context.createCGImage(renderer.frame(progress: progress), from: bounds)
     }
 }

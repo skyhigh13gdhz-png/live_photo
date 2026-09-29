@@ -23,6 +23,11 @@ final class ComposerModel: ObservableObject {
         return applyingAdvancedValues(to: randomizedConfigurations[selectedIndex])
     }
 
+    var previewAspectRatio: CGFloat {
+        guard let image else { return 9.0 / 16.0 }
+        return configuration.canvasRatio.aspectRatio(for: image.size)
+    }
+
     func load(_ items: [PhotosPickerItem]) async {
         isWorking = true
         didSucceed = false
@@ -110,6 +115,7 @@ final class ComposerModel: ObservableObject {
 
     private func applyingAdvancedValues(to resolved: MotionConfiguration) -> MotionConfiguration {
         var result = resolved
+        result.canvasRatio = configuration.canvasRatio
         result.duration = configuration.duration
         result.motionIntensity = configuration.motionIntensity
         result.shapeIntensity = configuration.shapeIntensity

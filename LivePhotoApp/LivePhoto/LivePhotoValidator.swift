@@ -25,9 +25,9 @@ enum LivePhotoValidator {
                 as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
               let height = properties[kCGImagePropertyPixelHeight] as? NSNumber,
-              width.intValue == 1080,
-              height.intValue == 1920 else {
-            throw LivePhotoError.validation("JPEG 尺寸不是 1080 × 1920")
+              width.intValue == Int(resources.outputSize.width),
+              height.intValue == Int(resources.outputSize.height) else {
+            throw LivePhotoError.validation("JPEG 尺寸与任务画布不一致")
         }
 
         guard let maker = properties[kCGImagePropertyMakerAppleDictionary]
@@ -46,8 +46,9 @@ enum LivePhotoValidator {
         }
 
         let size = try await videoTrack.load(.naturalSize)
-        guard abs(size.width) == 1080, abs(size.height) == 1920 else {
-            throw LivePhotoError.validation("MOV 尺寸不是 1080 × 1920")
+        guard Int(abs(size.width)) == Int(resources.outputSize.width),
+              Int(abs(size.height)) == Int(resources.outputSize.height) else {
+            throw LivePhotoError.validation("MOV 尺寸与任务画布不一致")
         }
 
         let metadata = try await asset.load(.metadata)

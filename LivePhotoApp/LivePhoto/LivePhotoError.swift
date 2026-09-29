@@ -30,4 +30,5 @@ struct LivePhotoResources: Sendable {
     let photoURL: URL
     let movieURL: URL
     let identifier: String
+    let outputSize: CGSize
 }

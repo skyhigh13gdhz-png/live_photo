@@ -29,6 +29,29 @@ final class MotionCurveTests: XCTestCase {
         }
     }
 
+    func testCanvasRatioPresetsAndOriginalRatio() {
+        XCTAssertEqual(
+            CanvasRatio.original.outputSize(for: CGSize(width: 3000, height: 4000)),
+            CGSize(width: 1440, height: 1920)
+        )
+        XCTAssertEqual(
+            CanvasRatio.original.outputSize(for: CGSize(width: 4000, height: 3000)),
+            CGSize(width: 1920, height: 1440)
+        )
+        XCTAssertEqual(
+            CanvasRatio.portrait9x16.outputSize(for: CGSize(width: 3000, height: 4000)),
+            CGSize(width: 1080, height: 1920)
+        )
+        XCTAssertEqual(
+            CanvasRatio.portrait4x5.outputSize(for: CGSize(width: 3000, height: 4000)),
+            CGSize(width: 1536, height: 1920)
+        )
+        XCTAssertEqual(
+            CanvasRatio.square.outputSize(for: CGSize(width: 3000, height: 4000)),
+            CGSize(width: 1440, height: 1440)
+        )
+    }
+
     func testEveryMotionAndShapeCombinationKeepsOutputOpaque() throws {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 1600, height: 900))
             .image { context in
@@ -81,12 +104,12 @@ final class MotionCurveTests: XCTestCase {
     }
 
     func testGeneratedPairPassesValidation() async throws {
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 900, height: 1600))
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 900, height: 1200))
             .image { context in
                 UIColor.systemIndigo.setFill()
-                context.fill(CGRect(x: 0, y: 0, width: 900, height: 1600))
+                context.fill(CGRect(x: 0, y: 0, width: 900, height: 1200))
                 UIColor.white.setFill()
-                context.fill(CGRect(x: 200, y: 300, width: 500, height: 1000))
+                context.fill(CGRect(x: 200, y: 200, width: 500, height: 800))
             }
         let resources = try await LivePhotoGenerator().generate(from: image) { _ in }
         defer {
@@ -95,6 +118,7 @@ final class MotionCurveTests: XCTestCase {
             )
         }
 
+        XCTAssertEqual(resources.outputSize, CGSize(width: 1440, height: 1920))
         try await LivePhotoValidator.validate(resources)
     }
 }
